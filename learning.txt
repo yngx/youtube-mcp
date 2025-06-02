@@ -1,0 +1,25 @@
+MCP Server Development Learnings
+================================
+
+1. STDOUT is Reserved for JSON-RPC Communication
+   - MCP servers communicate with clients using JSON-RPC protocol over stdin/stdout
+   - Any print() statements to stdout will corrupt the communication stream
+   - This causes JSON parsing errors on the client side
+
+2. Logging Best Practices for MCP Servers
+   - Option 1: Print to stderr
+     print("Debug message", file=sys.stderr)
+   
+   - Option 2: Use Python's logging module (recommended)
+     import logging
+     logging.basicConfig(level=logging.DEBUG, stream=sys.stderr)
+     logger = logging.getLogger(__name__)
+     logger.debug("Debug message")
+   
+   - Option 3: Write to a log file
+     with open("debug.log", "a") as f:
+         f.write("Debug message\n")
+
+3. Key Rule
+   - NEVER write directly to stdout in an MCP server
+   - stdout is exclusively for JSON-RPC message exchange
