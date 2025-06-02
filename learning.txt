@@ -4,10 +4,10 @@ MCP Server Development Learnings
 1. STDOUT is Reserved for JSON-RPC Communication
    - MCP servers communicate with clients using JSON-RPC protocol over stdin/stdout
    - Any print() statements to stdout will corrupt the communication stream
-   - This causes JSON parsing errors on the client side
+   - This causes JSON parsing errors on the client side: "Unexpected token 'a', \"transcript_l\"... is not valid JSON"
 
 2. Logging Best Practices for MCP Servers
-   - Option 1: Print to stderr
+   - Option 1: Print to stderr (simple debugging)
      print("Debug message", file=sys.stderr)
    
    - Option 2: Use Python's logging module (recommended)
@@ -20,6 +20,34 @@ MCP Server Development Learnings
      with open("debug.log", "a") as f:
          f.write("Debug message\n")
 
-3. Key Rule
+3. Server Initialization and Decorators
+   - MCP server decorators (@server.list_tools(), @server.call_tool()) require the server instance to exist at module level
+   - Decorators execute during module import, before main() runs
+   - Execution order:
+     1. Python imports the module
+     2. Creates server instance at module level
+     3. Decorators run and register functions with the server
+     4. main() is called
+     5. Server starts handling requests
+   - This is similar to Flask, FastAPI, and other Python frameworks
+
+4. Debugging Server Crashes
+   - Server crashes during initialization often show: "Server transport closed unexpectedly"
+   - Add debug prints to stderr to identify crash location
+   - Common causes:
+     - Missing imports (e.g., time, logging)
+     - Undefined variables
+     - Initialization errors in global scope
+     - Dependencies not installed
+
+5. Error Handling Best Practices
+   - Always handle exceptions in tool implementations
+   - Return error messages as TextContent rather than raising exceptions
+   - Use try/except blocks around external API calls (like YouTubeTranscriptApi)
+   - Check for undefined variables before use (e.g., full_transcript)
+
+6. Key Rules
    - NEVER write directly to stdout in an MCP server
    - stdout is exclusively for JSON-RPC message exchange
+   - Use stderr for ALL debugging output
+   - Initialize server at module level when using decorators
