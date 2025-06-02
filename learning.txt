@@ -46,8 +46,55 @@ MCP Server Development Learnings
    - Use try/except blocks around external API calls (like YouTubeTranscriptApi)
    - Check for undefined variables before use (e.g., full_transcript)
 
-6. Key Rules
-   - NEVER write directly to stdout in an MCP server
-   - stdout is exclusively for JSON-RPC message exchange
-   - Use stderr for ALL debugging output
-   - Initialize server at module level when using decorators
+6. File I/O During Module Import
+   - Avoid file system operations during module import (global scope)
+   - Operations like mkdir() or file writes during import can cause server crashes
+   - Solution: Use lazy initialization
+     ```python
+     # Bad: Immediate initialization
+     cache = TranscriptionCache(cache_dir=".youtube_cache")  # Creates dir on import
+     
+     # Good: Lazy initialization
+     cache = None
+     def get_cache():
+         global cache
+         if cache is None:
+             cache = TranscriptionCache(cache_dir=".youtube_cache")
+         return cache
+     ```
+
+7. Cache Directory Permissions
+   - MCP servers may run with different working directories or permissions
+   - Relative paths like ".youtube_cache" may fail due to read-only directories
+   - Solution: Use user's home directory for cache
+     ```python
+     cache_dir = Path.home() / ".youtube_mcp_cache"
+     ```
+
+8. YouTube API Rate Limiting and Failures
+   - YouTube may rate limit or block requests, causing "no element found" XML parsing errors
+   - Common causes:
+     - Too many requests in short time (rate limiting)
+     - IP flagged for bot-like behavior (CAPTCHA)
+     - Video has no captions available
+     - Video is private or region-locked
+   - Solutions:
+     - Add random delays between requests (0.5-1.5 seconds)
+     - Implement retry logic with longer waits for rate limiting
+     - Try multiple language transcripts as fallback
+     - Cache successful responses to reduce API calls
+
+9. External API Error Handling
+   - External APIs can fail unexpectedly even if they worked earlier
+   - Always provide clear error messages explaining possible causes
+   - Implement graceful degradation and fallback strategies
+   - Log detailed errors to stderr for debugging while returning user-friendly messages
+
+10. Key Rules
+    - NEVER write directly to stdout in an MCP server
+    - stdout is exclusively for JSON-RPC message exchange
+    - Use stderr for ALL debugging output
+    - Initialize server at module level when using decorators
+    - Avoid file I/O during module import - use lazy initialization
+    - Use absolute paths in user's home directory for persistent storage
+    - Always add delays and retry logic when calling external APIs
